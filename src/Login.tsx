@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiService } from './services/apiService';
 
 interface LoginProps {
   onLogin: (role: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Registration form state
   const [regForm, setRegForm] = useState({
@@ -17,15 +20,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     phone: '',
     regPassword: ''
   });
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState('');
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      const role = email.includes('admin') ? 'admin' : 'student';
+    setError('');
+    setLoading(true);
+
+    try {
+      // Login with username
+      await apiService.login(username, password);
+      
+      // Determine role based on username (admin check)
+      const role = username.includes('admin') ? 'admin' : 'user';
       onLogin(role);
+      
+      // Navigate to appropriate dashboard
       navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,15 +51,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setRegForm({ ...regForm, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("New Account Created:", regForm);
+    setRegError('');
+    setRegLoading(true);
 
-    // Close modal after submit
-    setShowModal(false);
+    try {
+      await apiService.signup(
+        regForm.name,
+        regForm.regEmail,
+        regForm.regPassword,
+        regForm.phone
+      );
 
-    // Clear form
-    setRegForm({ name: '', regEmail: '', phone: '', regPassword: '' });
+      // Close modal after successful signup
+      setShowModal(false);
+      setRegForm({ name: '', regEmail: '', phone: '', regPassword: '' });
+      setError('Account created! Please log in with your username: ' + regForm.name);
+    } catch (err) {
+      setRegError(err instanceof Error ? err.message : 'Signup failed');
+    } finally {
+      setRegLoading(false);
+    }
   };
 
   return (
@@ -56,14 +87,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             Campus<span className="text-yellow-400">Go</span>
           </h1>
 
+          {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
+
           <form onSubmit={handleSubmit}>
             <div className="mb-6 relative">
               <input
-                type="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
               <span className="absolute right-4 top-3">👤</span>
             </div>
@@ -75,15 +109,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
               <span className="absolute right-4 top-3">👁️</span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg cursor-pointer font-bold text-sm hover:bg-blue-50"
+              disabled={loading}
+              className="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg cursor-pointer font-bold text-sm hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              LOGIN
+              {loading ? 'Logging in...' : 'LOGIN'}
             </button>
           </form>
 
@@ -108,6 +144,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 md:p-8 rounded-lg w-full max-w-sm shadow-lg">
             <h2 className="text-center mb-6 font-bold text-lg md:text-xl">Create Account</h2>
+
+            {regError && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{regError}</div>}
 
             <form onSubmit={handleRegister}>
               <input
@@ -152,9 +190,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-blue-600 text-white border-none rounded-lg cursor-pointer font-bold mt-2 hover:bg-blue-700"
+                disabled={regLoading}
+                className="w-full py-3 bg-blue-600 text-white border-none rounded-lg cursor-pointer font-bold mt-2 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Account
+                {regLoading ? 'Creating account...' : 'Create Account'}
               </button>
             </form>
 

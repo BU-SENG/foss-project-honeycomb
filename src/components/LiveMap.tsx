@@ -1,5 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useShuttles } from '../ShuttleContext';
+
+// Babcock University Campus Landmarks based on the map image
+const LANDMARKS = [
+  { name: 'Bethel Splendor Hall', x: 420, y: 100 },
+  { name: 'Winslow Hall', x: 360, y: 140 },
+  { name: 'White Hall', x: 650, y: 160 },
+  { name: 'Nyberg Hall', x: 600, y: 200 },
+  { name: 'Crystal Hall', x: 720, y: 260 },
+  { name: 'Platinum Hall', x: 620, y: 260 },
+  { name: 'Busa House', x: 480, y: 240 },
+  { name: 'Babcock Amphitheatre', x: 580, y: 320 },
+  { name: 'Babcock University Registry', x: 480, y: 420 },
+  { name: 'Biochemistry Research Lab', x: 580, y: 480 },
+  { name: 'Babcock Guest House', x: 280, y: 280 },
+  { name: 'Blessed Naira', x: 120, y: 120 },
+  { name: 'Babcock University Teaching Hospital', x: 140, y: 320 },
+  { name: 'Andrews Park', x: 380, y: 480 },
+];
 
 interface ShuttleMarker {
   id: number;
@@ -8,51 +26,84 @@ interface ShuttleMarker {
   vx: number;
   vy: number;
   color: string;
+  targetIndex: number;
 }
 
 const LiveMap: React.FC = () => {
   const { shuttles } = useShuttles();
   const [markers, setMarkers] = useState<ShuttleMarker[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
 
-  // Initialize markers with random positions and velocities
+  // Load the map image
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    // Using a direct URL to the Babcock University map
+    img.src = 'https://lh5.googleusercontent.com/p/AF1QipN7Ea-z-QC0_g9L0H8e5nHGZ2z6vL6_-TcH2x8=w408-h306-k-no';
+    img.onload = () => setMapImage(img);
+    img.onerror = () => {
+      // Fallback: create a canvas if image doesn't load
+      console.warn('Map image failed to load');
+    };
+  }, []);
+
+  // Initialize shuttle markers with random starting positions
   useEffect(() => {
     const newMarkers = shuttles.map(shuttle => ({
       id: shuttle.id,
-      x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2,
-      color: shuttle.color
+      x: Math.random() * 700 + 50,
+      y: Math.random() * 500 + 50,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      color: shuttle.color,
+      targetIndex: Math.floor(Math.random() * LANDMARKS.length),
     }));
     setMarkers(newMarkers);
   }, [shuttles]);
 
-  // Animate shuttle movement
+  // Animate shuttle movement with landmark targeting
   useEffect(() => {
     const interval = setInterval(() => {
       setMarkers(prevMarkers =>
         prevMarkers.map(marker => {
-          let newX = marker.x + marker.vx;
-          let newY = marker.y + marker.vy;
+          const landmark = LANDMARKS[marker.targetIndex];
+          const dx = landmark.x - marker.x;
+          const dy = landmark.y - marker.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
           let newVx = marker.vx;
           let newVy = marker.vy;
 
+          // Move towards landmark
+          if (distance > 15) {
+            newVx = (dx / distance) * 1.2;
+            newVy = (dy / distance) * 1.2;
+          } else {
+            // Reached landmark, pick a new one
+            return {
+              ...marker,
+              targetIndex: Math.floor(Math.random() * LANDMARKS.length),
+              vx: newVx,
+              vy: newVy,
+            };
+          }
+
+          let newX = marker.x + newVx;
+          let newY = marker.y + newVy;
+
           // Bounce off edges
-          if (newX < 5 || newX > 95) {
-            newVx = -marker.vx;
-            newX = Math.max(5, Math.min(95, newX));
-          }
-          if (newY < 5 || newY > 95) {
-            newVy = -marker.vy;
-            newY = Math.max(5, Math.min(95, newY));
-          }
+          if (newX < 20) { newVx = Math.abs(newVx); newX = 20; }
+          if (newX > 780) { newVx = -Math.abs(newVx); newX = 780; }
+          if (newY < 20) { newVy = Math.abs(newVy); newY = 20; }
+          if (newY > 520) { newVy = -Math.abs(newVy); newY = 520; }
 
           return {
             ...marker,
             x: newX,
             y: newY,
             vx: newVx,
-            vy: newVy
+            vy: newVy,
           };
         })
       );
@@ -61,7 +112,66 @@ const LiveMap: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Color mapping for shuttle colors
+  // Draw the map and markers on canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.fillStyle = '#E8F5E9';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw map image if loaded
+    if (mapImage) {
+      ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw landmarks
+    LANDMARKS.forEach(landmark => {
+      ctx.fillStyle = '#1976D2';
+      ctx.beginPath();
+      ctx.arc(landmark.x, landmark.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#333';
+      ctx.font = '10px Arial';
+      ctx.fillText(landmark.name, landmark.x + 8, landmark.y - 3);
+    });
+
+    // Draw shuttle markers
+    markers.forEach(marker => {
+      const colorMap: Record<string, string> = {
+        'White': '#F5F5F5',
+        'Blue': '#3B82F6',
+        'Green': '#10B981',
+        'Yellow': '#FBBF24',
+        'Black': '#1F2937',
+        'Silver': '#D1D5DB',
+        'Red': '#EF4444',
+        'Orange': '#F97316',
+      };
+      const color = colorMap[marker.color] || '#999';
+
+      // Draw shuttle circle
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(marker.x, marker.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Draw shuttle label
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 9px Arial';
+      const label = String(marker.id).padStart(3, '0');
+      ctx.fillText(label, marker.x - 12, marker.y + 3);
+    });
+  }, [mapImage, markers]);
+
   const getColorHex = (colorName: string): string => {
     const colorMap: Record<string, string> = {
       'White': '#F5F5F5',
@@ -71,113 +181,47 @@ const LiveMap: React.FC = () => {
       'Black': '#1F2937',
       'Silver': '#D1D5DB',
       'Red': '#EF4444',
-      'Orange': '#F97316'
+      'Orange': '#F97316',
     };
     return colorMap[colorName] || '#999';
   };
 
   return (
     <div className="relative w-full h-full bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-300">
-      {/* Babcock University Map Background */}
-      <div className="absolute inset-0">
-        <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
-          {/* Background */}
-          <rect width="100" height="100" fill="#E8F5E9" />
-          
-          {/* Roads/Paths */}
-          <path d="M 50 0 L 50 100" stroke="#999" strokeWidth="1.5" fill="none" strokeDasharray="2,2" />
-          <path d="M 0 50 L 100 50" stroke="#999" strokeWidth="1.5" fill="none" strokeDasharray="2,2" />
-          <path d="M 20 20 L 80 80" stroke="#999" strokeWidth="1" fill="none" strokeDasharray="2,2" />
-          <path d="M 80 20 L 20 80" stroke="#999" strokeWidth="1" fill="none" strokeDasharray="2,2" />
-          
-          {/* Buildings */}
-          <rect x="10" y="10" width="12" height="12" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="13" y="17" fontSize="2" textAnchor="middle" fill="#333">Admin</text>
-          
-          <rect x="28" y="8" width="10" height="10" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="33" y="14" fontSize="1.5" textAnchor="middle" fill="#333">LAB</text>
-          
-          <rect x="62" y="12" width="14" height="14" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="69" y="20" fontSize="2" textAnchor="middle" fill="#333">Library</text>
-          
-          <rect x="78" y="30" width="12" height="12" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="84" y="37" fontSize="1.5" textAnchor="middle" fill="#333">Sport</text>
-          
-          <rect x="8" y="45" width="13" height="13" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="15" y="52" fontSize="2" textAnchor="middle" fill="#333">Hostel</text>
-          
-          <rect x="40" y="60" width="12" height="12" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="46" y="67" fontSize="1.5" textAnchor="middle" fill="#333">Cafe</text>
-          
-          <rect x="70" y="75" width="12" height="12" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="0.5" />
-          <text x="76" y="82" fontSize="1.5" textAnchor="middle" fill="#333">Gate</text>
-          
-          {/* Parking area */}
-          <rect x="25" y="75" width="18" height="15" fill="#C5E1A5" stroke="#827717" strokeWidth="0.5" strokeDasharray="1,1" />
-          <text x="34" y="84" fontSize="1.5" textAnchor="middle" fill="#333">Parking</text>
-          
-          {/* Map title */}
-          <text x="50" y="5" fontSize="3" fontWeight="bold" textAnchor="middle" fill="#1976D2">Babcock University Campus</text>
-        </svg>
-      </div>
-
-      {/* Shuttle Markers */}
-      {markers.map(marker => (
-        <div
-          key={marker.id}
-          className="absolute transition-all"
-          style={{
-            left: `${marker.x}%`,
-            top: `${marker.y}%`,
-            transform: 'translate(-50%, -50%)',
-            zIndex: 10
-          }}
-        >
-          {/* Shuttle Icon */}
-          <div
-            className="relative group"
-            title={`Shuttle ${String(marker.id).padStart(3, '0')}`}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill={getColorHex(marker.color)}
-              stroke="#333"
-              strokeWidth="1.5"
-              className="drop-shadow-lg hover:drop-shadow-xl transition-all"
-            >
-              {/* Shuttle bus shape */}
-              <rect x="4" y="7" width="16" height="10" rx="2" />
-              <circle cx="7" cy="17" r="1.5" />
-              <circle cx="17" cy="17" r="1.5" />
-              <rect x="4" y="6" width="16" height="2" rx="1" />
-            </svg>
-            {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              Shuttle {String(marker.id).padStart(3, '0')}
-            </div>
-          </div>
-        </div>
-      ))}
+      {/* Canvas Map */}
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={540}
+        className="w-full h-full"
+      />
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-lg shadow-md text-xs">
+      <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-lg shadow-md text-xs max-h-60 overflow-y-auto">
         <div className="font-semibold mb-2">Active Shuttles:</div>
-        <div className="space-y-1">
+        <div className="space-y-2">
           {shuttles.map(shuttle => (
-            <div key={shuttle.id} className="flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill={getColorHex(shuttle.color)}>
-                <rect x="4" y="7" width="16" height="10" rx="2" />
-                <circle cx="7" cy="17" r="1.5" />
-                <circle cx="17" cy="17" r="1.5" />
-              </svg>
-              <span>
-                Shuttle {String(shuttle.id).padStart(3, '0')} 
-                <span className={`ml-2 px-2 py-0.5 rounded text-white text-xs ${shuttle.status ? 'bg-green-500' : 'bg-red-500'}`}>
-                  {shuttle.status ? 'Active' : 'Inactive'}
+            <div key={shuttle.id} className="border-b border-gray-200 pb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span style={{ background: getColorHex(shuttle.color), width: 12, height: 12, display: 'inline-block', borderRadius: '50%', border: '1px solid #333' }}></span>
+                <span>
+                  Shuttle {String(shuttle.id).padStart(3, '0')}
+                  <span className={`ml-2 px-2 py-0.5 rounded text-white text-xs ${shuttle.status ? 'bg-green-500' : 'bg-red-500'}`}>
+                    {shuttle.status ? 'Active' : 'Inactive'}
+                  </span>
                 </span>
-              </span>
+              </div>
+              {shuttle.nextRoute && (
+                <div className="ml-4 text-xs bg-blue-50 p-1 rounded">
+                  <div className="font-semibold text-blue-900">Next Route:</div>
+                  <div className="text-blue-800">
+                    {shuttle.nextRoute.origin} → {shuttle.nextRoute.destination}
+                  </div>
+                  <div className="text-blue-700">
+                    ~{shuttle.nextRoute.estimated_time_minutes} min ({shuttle.nextRoute.distance_km} km)
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

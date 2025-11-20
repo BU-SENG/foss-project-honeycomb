@@ -1,54 +1,284 @@
-# Project — Vite + React + TypeScript (with Tailwind)
+# CampusGo — Campus Shuttle Management System
 
-This repository is a Vite + React + TypeScript frontend scaffold configured with Tailwind CSS, ESLint, and basic tooling. The README below helps collaborators get the project running locally, follow quality gates, and contribute.
+A full-stack campus shuttle management system with a React + TypeScript frontend and Django backend. Admins can manage shuttles; students can view shuttle availability and live tracking.
 
-## Quick overview
+## Features
 
-- Framework: React + TypeScript
-- Bundler: Vite
-- CSS: Tailwind CSS (PostCSS)
-- Linting: ESLint
+- **Authentication**: JWT-based login/signup with role-based access (admin/user)
+- **Admin Dashboard**: Manage shuttles (add, edit status), view live tracking
+- **User Dashboard**: View available shuttles, real-time location tracking
+- **Live Map**: Babcock University map with animated shuttle icons
+- **Responsive Design**: Fully mobile-responsive (mobile, tablet, desktop)
+- **Backend Integration**: Django REST API for all data operations
+- **Settings**: User profile management and password changes
 
-Files of interest:
+## Tech Stack
 
-- `src/` — application source files
-- `index.html` — app entry
-- `vite.config.ts` — Vite configuration
-- `tsconfig.app.json` / `tsconfig.json` — TypeScript config
-- `tailwind.config.js`, `postcss.config.js` — Tailwind/PostCSS
-- `eslint.config.js` — ESLint configuration
+### Frontend
+- **Framework**: React 18.3.1 + TypeScript
+- **Build Tool**: Vite 5.4.2
+- **Styling**: Tailwind CSS 3.4.1 + PostCSS
+- **Icons**: Lucide React 0.344.0
+- **Routing**: React Router v7.9.6
+- **State Management**: React Context API
+
+### Backend
+- **Framework**: Django 5.x
+- **API**: Django REST Framework
+- **Database**: SQLite (development)
+- **Authentication**: JWT (django-rest-framework-simplejwt)
 
 ## Prerequisites
 
-- Node.js (recommended LTS). This project uses modern tooling — Node 18+ is recommended. If you use nvm/nvs/Volta, pick an LTS build (18 or 20).
-- A package manager: npm (examples below use npm). pnpm or yarn should also work.
+- **Node.js**: 18+ (LTS recommended)
+- **Python**: 3.10+
+- **npm** or **pnpm** or **yarn**
 
-Note: `package.json` ships with these scripts: `dev`, `build`, `preview`, `lint`, and `typecheck`.
+## Project Structure
 
-## Setup (first time)
-
-Open a terminal in the project root and run:
-
-```powershell
-npm install
+```
+project/
+├── src/                          # Frontend React app
+│   ├── components/               # Reusable components
+│   ├── services/                 # API service layer
+│   ├── ShuttleContext.tsx        # Global state management
+│   ├── AdminDashboard.tsx        # Admin dashboard
+│   ├── UserDashboard.tsx         # User dashboard
+│   ├── AdminShuttleManagement.tsx # Shuttle CRUD
+│   ├── Login.tsx                 # Authentication
+│   └── main.tsx
+├── backend_api/                  # Django app for API
+│   ├── views.py                  # API endpoints
+│   ├── models.py                 # Data models
+│   ├── serializer.py             # DRF serializers
+│   └── urls.py                   # URL routing
+├── manage.py                     # Django CLI
+└── vite.config.ts
 ```
 
-Alternatives:
+## Setup & Installation
 
-- pnpm: `pnpm install`
-- yarn: `yarn install`
+### Frontend Setup
 
-## Run the dev server
+```bash
+# Install dependencies
+npm install
 
-```powershell
+# Create .env file
+echo "VITE_API_URL=http://localhost:8000" > .env
+
+# Start dev server
 npm run dev
 ```
 
-This starts Vite's dev server (hot module replacement). By default it will log the local and network URLs.
+The frontend will be available at `http://localhost:5173`.
 
-## Build and preview
+### Backend Setup
 
-Build for production:
+```bash
+# Install Python dependencies
+pip install -r requirment.txt
+
+# Run migrations
+python manage.py migrate
+
+# Create a superuser (admin)
+python manage.py createsuperuser
+
+# Start Django dev server
+python manage.py runserver
+```
+
+The backend will be available at `http://localhost:8000`.
+
+## API Endpoints
+
+All endpoints require JWT authentication (except `/signup/` and `/login/`).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/signup/` | User registration |
+| POST | `/login/` | User login (returns JWT) |
+| GET | `/profile/` | Get authenticated user profile |
+| GET | `/backend/vehicles/` | List all vehicles/shuttles |
+| POST | `/backend/vehicles/` | Create a new vehicle |
+| PUT | `/backend/vehicles/{id}/` | Update vehicle details |
+| DELETE | `/backend/vehicles/{id}/` | Delete vehicle |
+
+## Authentication Flow
+
+1. **Sign Up**: User creates account → API creates `User` + `profile` record
+2. **Login**: Credentials validated → JWT tokens returned
+3. **Access**: Frontend stores JWT in `localStorage`, sends in `Authorization: Bearer <token>` header
+4. **Role Check**: `email.includes('admin')` determines user role
+
+## Frontend Services
+
+### API Service (`src/services/apiService.ts`)
+
+Centralized service for all backend calls:
+
+```typescript
+import { apiService } from './services/apiService';
+
+// Auth
+await apiService.login(email, password);
+await apiService.signup(username, email, password, phone);
+
+// Profile
+const profile = await apiService.getProfile();
+await apiService.updateProfile(phone, bio);
+
+// Vehicles
+const vehicles = await apiService.getVehicles();
+await apiService.createVehicle(vehicleData);
+await apiService.updateVehicle(id, vehicleData);
+await apiService.deleteVehicle(id);
+```
+
+### ShuttleContext (`src/ShuttleContext.tsx`)
+
+Global state for shuttle data:
+
+```typescript
+import { useShuttles } from './ShuttleContext';
+
+const { shuttles, setShuttles, loading, error } = useShuttles();
+```
+
+## Running the Project
+
+### Development Mode
+
+**Terminal 1 — Backend**:
+```bash
+cd project
+python manage.py runserver
+```
+
+**Terminal 2 — Frontend**:
+```bash
+cd project
+npm run dev
+```
+
+### Test Accounts
+
+- **Admin**: `admin@example.com` / `password123`
+- **User**: `user@example.com` / `password123`
+
+(Create via signup or Django admin)
+
+## Build for Production
+
+### Frontend
+```bash
+npm run build
+npm run preview  # Preview production build
+```
+
+### Backend
+```bash
+python manage.py collectstatic
+# Deploy to production server (e.g., Gunicorn + Nginx)
+```
+
+## Environment Variables
+
+### `.env` (Frontend)
+```
+VITE_API_URL=http://localhost:8000
+```
+
+### `.env` (Backend) — if needed
+```
+DEBUG=True
+SECRET_KEY=your-secret-key
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
+
+## Scripts
+
+### Frontend
+
+```bash
+npm run dev       # Start dev server
+npm run build     # Build for production
+npm run preview   # Preview production build
+npm run lint      # Run ESLint
+npm run typecheck # Run TypeScript check
+```
+
+### Backend
+
+```bash
+python manage.py runserver        # Start dev server
+python manage.py migrate          # Apply migrations
+python manage.py makemigrations   # Create migrations
+python manage.py createsuperuser  # Create admin user
+python manage.py shell            # Interactive shell
+```
+
+## Key Features Breakdown
+
+### Live Map
+- Displays Babcock University map background
+- Animated shuttle icons moving across the map
+- Real-time position updates
+- Click shuttle for details
+
+### Admin Features
+- **Shuttle Management**: Add, edit, delete shuttles
+- **Status Toggle**: Mark shuttles as active/inactive
+- **Search**: Filter shuttles by driver or plate number
+- **Dashboard**: Overview of all active shuttles
+
+### User Features
+- **View Shuttles**: See all available shuttles
+- **Estimated Time**: ETA display for each shuttle
+- **Route Info**: See shuttle routes/destinations
+- **Live Tracking**: Real-time position on map
+
+### Settings
+- **Profile**: Edit name, email, phone
+- **Password**: Change account password
+- **Persistence**: Changes saved to backend
+
+## Common Issues & Solutions
+
+### CORS Errors
+**Issue**: Frontend can't reach backend
+**Solution**:
+1. Ensure backend is running on `http://localhost:8000`
+2. Update `.env` `VITE_API_URL` if needed
+3. Check `CORS_ALLOWED_ORIGINS` in Django settings
+
+### JWT Token Expired
+**Issue**: "Token expired" error
+**Solution**: User must log in again. Refresh token support coming soon.
+
+### Shuttle Data Not Loading
+**Issue**: Empty dashboard
+**Solution**:
+1. Create vehicles via Django admin (`/admin/`)
+2. Or use "Add Shuttle" button in admin dashboard
+3. Check backend console for errors
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+
+## License
+
+MIT (see LICENSE file if present)
+
+## Support
+
+For issues, questions, or feature requests, open an issue in the repository.
+
+---
+
+**Last Updated**: November 2025Build for production:
 
 ```powershell
 npm run build
