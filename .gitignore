@@ -1,3 +1,39 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+env/
+*.env
+
+# Django stuff
+*.sqlite3
+db.sqlite3
+/staticfiles/
+media/
+*.log
+
+# PyCharm/VSCode settings
+.vscode/
+.idea/
+
+# Django secret key / environment variables
+.env
+
+# Byte-compiled / distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -6,18 +42,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node modules
 node_modules
-dist
 dist-ssr
 *.local
 
+# Misc
 .vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
+.vscode/extensions.json
+.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
