@@ -1,0 +1,34 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+env/
+*.env
+
+# Django stuff
+*.sqlite3
+db.sqlite3
+/staticfiles/
+media/
+*.log
+
+# PyCharm/VSCode settings
+.vscode/
+.idea/
+
+# Django secret key / environment variables
+.env
+
+# Byte-compiled / distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
